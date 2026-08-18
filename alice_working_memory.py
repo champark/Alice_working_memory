@@ -4,7 +4,7 @@
 Python 3.x / Tkinter 표준 라이브러리만 사용
 
 실행:
-    python alice_working_memory.py
+    python alice_working_memory_integrated_v4_ready_enter.py
 """
 
 from __future__ import annotations
@@ -495,6 +495,13 @@ class AliceMemoryGame:
         self.after_ids: List[str] = []
         self.timer_after_id: Optional[str] = None
 
+        # 현재 화면에서 Enter 키가 실행할 "주 동작".
+        # 문제 선택 화면이나 기억정보 표시 중에는 None으로 두어
+        # Enter가 오답/다음 화면을 실수로 실행하지 않도록 한다.
+        self.enter_action: Optional[Callable[[], None]] = None
+        self.root.bind("<Return>", self._on_enter)
+        self.root.bind("<KP_Enter>", self._on_enter)
+
         self.stages = self.build_stages()
         self.build_shell()
         self.show_title_screen()
@@ -716,9 +723,27 @@ class AliceMemoryGame:
         btn.pack(fill="x", pady=6)
         return btn
 
+    def set_enter_action(self, action: Optional[Callable[[], None]]) -> None:
+        """현재 화면에서 Enter 키가 실행할 동작을 지정한다."""
+        self.enter_action = action
+
+    def _on_enter(self, _event=None):
+        """Enter/키패드 Enter 공통 처리.
+
+        준비/계속/재도전 같은 명확한 주 동작이 있을 때만 실행한다.
+        기억정보 표시 중이나 객관식 문제 화면에서는 enter_action을 None으로
+        두므로 실수로 답이 선택되거나 화면이 넘어가지 않는다.
+        """
+        action = self.enter_action
+        if action is not None:
+            action()
+            return "break"
+        return None
+
     # ---------- 화면 흐름 ----------
     def show_title_screen(self) -> None:
         self.cancel_pending()
+        self.set_enter_action(None)
         self.stage_index = 0
         self.round_in_stage = 0
         self.lives = START_LIVES
@@ -764,8 +789,9 @@ class AliceMemoryGame:
             )
             rb.pack(side="left", padx=10)
 
-        self.add_button("처음부터 플레이 ▶", self.start_game, big=True)
+        self.add_button("처음부터 플레이 ▶  (Enter)", self.start_game, big=True)
         self.add_button("에피소드 선택 / 테스트", self.show_episode_select, big=False)
+        self.set_enter_action(self.start_game)
 
     def select_difficulty(self, name: str) -> None:
         self.difficulty = name
@@ -786,6 +812,7 @@ class AliceMemoryGame:
         스테이지로 정상적으로 이어진다. 난이도는 시작 화면에서 고른 값을 사용한다.
         """
         self.cancel_pending()
+        self.set_enter_action(None)
         self.clear_buttons()
         self.hide_progress()
 
@@ -863,6 +890,7 @@ class AliceMemoryGame:
 
     def show_story(self) -> None:
         self.cancel_pending()
+        self.set_enter_action(None)
         self.clear_buttons()
         self.hide_progress()
         self.set_topbar()
@@ -871,15 +899,63 @@ class AliceMemoryGame:
         self.title_label.config(text=stage.title)
         self.body_label.config(text=stage.story, font=("Malgun Gothic", 14))
         self.footer.config(
-            text=f"난이도: {self.difficulty} · 다음 문제에서 기억할 정보가 잠시 제시됩니다."
+            text=f"난이도: {self.difficulty} · Enter 키로도 계속할 수 있습니다."
         )
-        self.add_button("이야기 계속 →", self.begin_round, big=True)
+        self.add_button("이야기 계속 →  (Enter)", self.begin_round, big=True)
+        self.set_enter_action(self.begin_round)
 
     def begin_round(self) -> None:
+        """새 문제를 만든 뒤 곧바로 제시하지 않고 '준비 화면'을 먼저 연다."""
+        self.set_enter_action(None)
         self.current_task = self.stages[self.stage_index].generator(self)
-        self.show_memory(self.current_task)
+        self.show_task_ready(self.current_task)
+
+    def show_task_ready(self, task: Task, retry: bool = False) -> None:
+        """모든 문제 유형에 공통으로 사용하는 수동 시작 화면.
+
+        사용자가 버튼 또는 Enter를 누르기 전에는 기억정보 타이머나
+        N-Back 숫자열이 절대 시작되지 않는다.
+        """
+        self.cancel_pending()
+        self.set_enter_action(None)
+        self.clear_buttons()
+        self.hide_progress()
+        self.set_topbar()
+
+        if retry:
+            self.title_label.config(text="재도전 준비")
+            intro = (
+                "방금 문제의 기억정보를 처음부터 다시 보여 줍니다.\n\n"
+                "준비가 되었을 때 시작하세요."
+            )
+        else:
+            self.title_label.config(text="문제 준비")
+            intro = (
+                f"{self.round_in_stage + 1}/{ROUNDS_PER_STAGE}번째 문제입니다.\n\n"
+                "준비가 되었을 때 시작하세요."
+            )
+
+        # 순차 제시 문제(N-Back)는 기억해야 할 실제 숫자열을 노출하지 않고,
+        # 규칙 설명만 준비 화면에서 미리 읽을 수 있게 한다.
+        if task.presentation == "sequence":
+            intro += "\n\n" + task.memory_text
+        else:
+            intro += (
+                "\n\n시작하면 기억정보가 제한된 시간 동안 표시된 뒤 자동으로 사라집니다."
+            )
+
+        self.body_label.config(text=intro, font=("Malgun Gothic", 14))
+        self.footer.config(
+            text=(task.tip + "  " if task.tip else "")
+            + "마우스로 버튼을 누르거나 Enter 키를 누르세요."
+        )
+
+        start_action = lambda: self.show_memory(task)
+        self.add_button("준비 완료 · 시작 ▶  (Enter)", start_action, big=True)
+        self.set_enter_action(start_action)
 
     def show_memory(self, task: Task) -> None:
+        self.set_enter_action(None)
         if task.presentation == "sequence" and task.sequence:
             self.show_sequence_memory(task)
             return
@@ -915,9 +991,8 @@ class AliceMemoryGame:
         self.footer.config(text=task.tip or "숫자는 한 번에 하나씩 표시됩니다.")
         self.update_progress(1.0)
 
-        # 먼저 규칙을 읽을 짧은 시간을 준 뒤 숫자열을 시작한다.
-        intro_ms = 1700
-
+        # 규칙 읽기와 준비는 공통 준비 화면에서 끝냈으므로
+        # 여기서는 자동 대기 없이 즉시 첫 숫자를 표시한다.
         def show_item(index: int) -> None:
             if index >= len(sequence):
                 self.body_label.config(text="", font=("Malgun Gothic", 14))
@@ -943,8 +1018,7 @@ class AliceMemoryGame:
             aid1 = self.root.after(task.item_ms, blank_then_next)
             self.after_ids.append(aid1)
 
-        aid0 = self.root.after(intro_ms, lambda: show_item(0))
-        self.after_ids.append(aid0)
+        show_item(0)
 
     def run_progress_timer(self, duration_ms: int, on_done) -> None:
         self.update_progress(1.0)
@@ -966,6 +1040,7 @@ class AliceMemoryGame:
 
     def show_question(self, task: Task) -> None:
         self.cancel_pending()
+        self.set_enter_action(None)
         self.clear_buttons()
         self.hide_progress()
         self.set_topbar()
@@ -992,6 +1067,7 @@ class AliceMemoryGame:
 
     def handle_correct(self) -> None:
         self.cancel_pending()
+        self.set_enter_action(None)
         self.clear_buttons()
         self.round_in_stage += 1
         self.set_topbar()
@@ -1001,16 +1077,19 @@ class AliceMemoryGame:
         self.footer.config(text="")
 
         if self.round_in_stage >= ROUNDS_PER_STAGE:
-            self.add_button("스테이지 완료 →", self.complete_stage, big=True)
+            self.add_button("스테이지 완료 →  (Enter)", self.complete_stage, big=True)
+            self.set_enter_action(self.complete_stage)
         else:
             self.add_button(
-                f"다음 문제 ({self.round_in_stage + 1}/{ROUNDS_PER_STAGE})",
+                f"다음 문제 준비 ({self.round_in_stage + 1}/{ROUNDS_PER_STAGE})  (Enter)",
                 self.begin_round,
                 big=True,
             )
+            self.set_enter_action(self.begin_round)
 
     def handle_wrong(self) -> None:
         self.cancel_pending()
+        self.set_enter_action(None)
         self.clear_buttons()
         self.lives -= 1
         self.set_topbar()
@@ -1027,12 +1106,13 @@ class AliceMemoryGame:
                 "대신 방금 기억해야 했던 정보를 처음부터 다시 보여 줍니다."
             )
         )
-        self.footer.config(text="틀린 뒤 다음 정보가 곧바로 밀려오지 않도록 잠깐 끊어 줍니다.")
-        self.add_button("기억정보 다시 보기", self.retry_same_task, big=True)
+        self.footer.config(text="준비가 되면 버튼 또는 Enter로 같은 문제를 다시 시작하세요.")
+        self.add_button("재도전 준비 →  (Enter)", self.retry_same_task, big=True)
+        self.set_enter_action(self.retry_same_task)
 
     def retry_same_task(self) -> None:
         if self.current_task is not None:
-            self.show_memory(self.current_task)
+            self.show_task_ready(self.current_task, retry=True)
 
     def complete_stage(self) -> None:
         self.round_in_stage = 0
@@ -1046,6 +1126,7 @@ class AliceMemoryGame:
 
     def show_game_over(self) -> None:
         self.cancel_pending()
+        self.set_enter_action(None)
         self.clear_buttons()
         self.hide_progress()
         self.life_label.config(text="♡" * START_LIVES)
@@ -1069,6 +1150,7 @@ class AliceMemoryGame:
 
     def show_ending(self) -> None:
         self.cancel_pending()
+        self.set_enter_action(None)
         self.clear_buttons()
         self.hide_progress()
         self.stage_label.config(text="CLEAR")
