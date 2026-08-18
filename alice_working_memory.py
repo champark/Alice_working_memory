@@ -764,7 +764,8 @@ class AliceMemoryGame:
             )
             rb.pack(side="left", padx=10)
 
-        self.add_button("게임 시작 ▶", self.start_game, big=True)
+        self.add_button("처음부터 플레이 ▶", self.start_game, big=True)
+        self.add_button("에피소드 선택 / 테스트", self.show_episode_select, big=False)
 
     def select_difficulty(self, name: str) -> None:
         self.difficulty = name
@@ -775,6 +776,89 @@ class AliceMemoryGame:
         self.lives = START_LIVES
         self.stage_index = 0
         self.round_in_stage = 0
+        self.current_task = None
+        self.show_story()
+
+    def show_episode_select(self) -> None:
+        """개발/테스트용 에피소드 바로가기 화면.
+
+        원하는 스테이지부터 즉시 시작할 수 있고, 클리어하면 그 다음
+        스테이지로 정상적으로 이어진다. 난이도는 시작 화면에서 고른 값을 사용한다.
+        """
+        self.cancel_pending()
+        self.clear_buttons()
+        self.hide_progress()
+
+        self.difficulty = self.difficulty_var.get()
+        self.stage_label.config(text="EPISODE SELECT")
+        self.life_label.config(text="")
+        self.title_label.config(text="에피소드 선택 / 테스트 모드")
+        self.body_label.config(
+            text=(
+                "수정하거나 시험할 에피소드를 바로 선택하세요.\n"
+                "선택한 에피소드부터 라이프 5개로 시작하며, 클리어하면 다음 에피소드로 계속 진행됩니다.\n\n"
+                f"현재 난이도: {self.difficulty}"
+            ),
+            font=("Malgun Gothic", 14),
+        )
+        self.footer.config(text="테스트용 바로가기입니다. 진행 기록이나 잠금 조건은 없습니다.")
+
+        # 14개 에피소드가 한 화면에 안정적으로 들어오도록 2열로 배치한다.
+        episode_grid = tk.Frame(self.button_frame, bg=PANEL)
+        episode_grid.pack(fill="both", expand=True, pady=(0, 8))
+        episode_grid.grid_columnconfigure(0, weight=1)
+        episode_grid.grid_columnconfigure(1, weight=1)
+
+        for idx, stage in enumerate(self.stages):
+            row = idx // 2
+            col = idx % 2
+            btn = tk.Button(
+                episode_grid,
+                text=f"{idx + 1:02d}. {stage.title}",
+                command=lambda i=idx: self.start_episode(i),
+                bg=BUTTON_BG,
+                fg=INK,
+                activebackground=BUTTON_ACTIVE,
+                activeforeground=INK,
+                relief="flat",
+                bd=0,
+                font=("Malgun Gothic", 11, "bold"),
+                cursor="hand2",
+                padx=10,
+                pady=8,
+                wraplength=300,
+                justify="center",
+            )
+            btn.grid(row=row, column=col, sticky="ew", padx=6, pady=4)
+
+        back_btn = tk.Button(
+            self.button_frame,
+            text="← 시작 화면으로",
+            command=self.show_title_screen,
+            bg=ACCENT,
+            fg="white",
+            activebackground=ACCENT_2,
+            activeforeground="white",
+            relief="flat",
+            bd=0,
+            font=("Malgun Gothic", 12, "bold"),
+            cursor="hand2",
+            padx=14,
+            pady=9,
+        )
+        back_btn.pack(fill="x", pady=(4, 0))
+
+    def start_episode(self, index: int) -> None:
+        """선택한 에피소드부터 새 테스트 세션을 시작한다."""
+        if not 0 <= index < len(self.stages):
+            return
+
+        self.cancel_pending()
+        self.difficulty = self.difficulty_var.get()
+        self.lives = START_LIVES
+        self.stage_index = index
+        self.round_in_stage = 0
+        self.current_task = None
         self.show_story()
 
     def show_story(self) -> None:
