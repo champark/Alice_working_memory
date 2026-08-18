@@ -419,7 +419,7 @@ class AliceMemoryGame:
             )
 
         self.add_button(
-            "처음부터 플레이 ▶  (Enter)",
+            "처음부터 플레이 ▶",
             self.start_game,
             big=True,
         )
@@ -615,7 +615,7 @@ class AliceMemoryGame:
         )
 
         self.add_button(
-            "이야기 계속 →  (Enter)",
+            "이야기 계속 →",
             self.begin_round,
             big=True,
         )
@@ -696,7 +696,7 @@ class AliceMemoryGame:
             self.show_memory(task)
 
         self.add_button(
-            "준비 완료 · 시작 ▶  (Enter)",
+            "준비 완료 · 시작 ▶",
             start_action,
             big=True,
         )
@@ -795,7 +795,7 @@ class AliceMemoryGame:
             >= ROUNDS_PER_STAGE
         ):
             self.add_button(
-                "스테이지 완료 →  (Enter)",
+                "스테이지 완료 →",
                 self.complete_stage,
                 big=True,
             )
@@ -807,7 +807,7 @@ class AliceMemoryGame:
                 (
                     "다음 문제 준비 "
                     f"({self.round_in_stage + 1}/"
-                    f"{ROUNDS_PER_STAGE})  (Enter)"
+                    f"{ROUNDS_PER_STAGE})"
                 ),
                 self.begin_round,
                 big=True,
@@ -848,7 +848,7 @@ class AliceMemoryGame:
         )
 
         self.add_button(
-            "재도전 준비 →  (Enter)",
+            "재도전 준비 →",
             self.retry_same_task,
             big=True,
         )

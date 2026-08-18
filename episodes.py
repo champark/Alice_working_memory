@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import List
 
+from config import PRESENT_SEQUENCE
 from models import Stage
 from problems import (
     make_association_task,
@@ -36,7 +37,10 @@ def tutorial_problem(difficulty: str):
         intro="토끼굴을 떨어지는 동안 이것들이 보였습니다.",
         question_template="{position}번째로 본 물건은 무엇이었나요?",
         base_memory_ms=4500,
-        tip="순서 전체를 한 덩어리의 장면처럼 떠올려 보세요.",
+        tip="나타난 순서를 머릿속으로 이어 붙여 기억해 보세요.",
+        presentation=PRESENT_SEQUENCE,
+        item_ms=1000,
+        gap_ms=250,
     )
 
 
@@ -56,8 +60,11 @@ def small_door_problem(difficulty: str):
         base_count=4,
         low_count=3,
         high_count=6,
-        intro="작은 방에서 본 순서를 기억하세요.",
+        intro="작은 방에서 물건이 하나씩 나타납니다. 순서를 기억하세요.",
         base_memory_ms=4300,
+        presentation=PRESENT_SEQUENCE,
+        item_ms=900,
+        gap_ms=250,
     )
 
 
@@ -161,10 +168,13 @@ def queen_garden_problem(difficulty: str):
         low_count=4,
         high_count=7,
         intro=(
-            "하트 여왕이 나타나기 전 카드 병사들이 물건을 옮깁니다.\n"
-            "이번에는 기억 시간이 조금 짧습니다."
+            "하트 여왕이 나타나기 전 카드 병사들이 물건을 하나씩 옮깁니다.\n"
+            "나타나는 순서를 기억하세요."
         ),
         base_memory_ms=3100,
+        presentation=PRESENT_SEQUENCE,
+        item_ms=700,
+        gap_ms=180,
     )
 
 
