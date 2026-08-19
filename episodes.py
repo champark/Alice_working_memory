@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import List
+from typing import Callable, Dict, List
 
 from config import PRESENT_SEQUENCE
-from models import Stage
+from models import Stage, Task
 from problems import (
     make_association_task,
     make_composite_task,
@@ -19,14 +19,6 @@ from problems import (
 )
 
 
-# ============================================================
-# 에피소드별 문제 설정
-# ------------------------------------------------------------
-# 이 파일만 수정해도 각 에피소드의 단어/스토리/문제 구성 대부분을
-# 바꿀 수 있도록 만들었다.
-# ============================================================
-
-
 def tutorial_problem(difficulty: str):
     return make_sequence_task(
         difficulty,
@@ -34,7 +26,7 @@ def tutorial_problem(difficulty: str):
         base_count=3,
         low_count=3,
         high_count=3,
-        intro="토끼굴을 떨어지는 동안 이것들이 보였습니다.",
+        intro="토끼굴을 떨어지는 동안 물건들이 하나씩 보입니다. 순서를 기억하세요.",
         question_template="{position}번째로 본 물건은 무엇이었나요?",
         base_memory_ms=4500,
         tip="나타난 순서를 머릿속으로 이어 붙여 기억해 보세요.",
@@ -228,6 +220,31 @@ def trial_problem(difficulty: str):
         memory_prefix="♛ 최종 재판 ♛\n\n",
         question_prefix="재판 질문:\n",
     )
+
+
+# ============================================================
+# 에피소드 선택 화면용 훈련 종류 메타데이터
+# ============================================================
+TRAINING_TYPE_LABELS: Dict[Callable[[str], Task], str] = {
+    tutorial_problem: "순서 기억",
+    small_door_problem: "순서 기억",
+    pool_problem: "대응 기억",
+    caucus_problem: "순위 기억",
+    rabbit_house_problem: "N-Back",
+    caterpillar_problem: "상태 추적",
+    duchess_problem: "대응 기억",
+    cheshire_problem: "공간 추적",
+    tea_party_problem: "상태 추적",
+    queen_garden_problem: "순서 기억",
+    croquet_problem: "공간 추적",
+    turtle_problem: "이야기 기억",
+    trial_problem: "복합 훈련",
+}
+
+
+def get_training_type(generator: Callable[[str], Task]) -> str:
+    """에피소드 선택 화면에 표시할 훈련 종류를 반환한다."""
+    return TRAINING_TYPE_LABELS.get(generator, "기타")
 
 
 def build_stages() -> List[Stage]:

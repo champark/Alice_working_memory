@@ -24,7 +24,7 @@ from config import (
     WINDOW_SIZE,
 )
 from difficulty import DIFFICULTIES
-from episodes import build_stages
+from episodes import build_stages, get_training_type
 from models import Task
 from presentation import TaskPresenter
 
@@ -77,10 +77,6 @@ class AliceMemoryGame:
         )
 
         self.show_title_screen()
-
-    # ========================================================
-    # 공통 UI
-    # ========================================================
 
     def build_shell(self) -> None:
         self.topbar = tk.Frame(
@@ -193,6 +189,12 @@ class AliceMemoryGame:
         )
 
     def clear_buttons(self) -> None:
+        # 에피소드 선택 화면에서만 사용하는 전역 마우스 휠 바인딩을
+        # 다른 화면으로 넘어갈 때 함께 제거한다.
+        self.root.unbind_all("<MouseWheel>")
+        self.root.unbind_all("<Button-4>")
+        self.root.unbind_all("<Button-5>")
+
         for widget in self.button_frame.winfo_children():
             widget.destroy()
 
@@ -310,10 +312,6 @@ class AliceMemoryGame:
         )
         return button
 
-    # ========================================================
-    # Enter 키
-    # ========================================================
-
     def set_enter_action(
         self,
         action: Optional[
@@ -330,10 +328,6 @@ class AliceMemoryGame:
             return "break"
 
         return None
-
-    # ========================================================
-    # 시작 화면 / 에피소드 선택
-    # ========================================================
 
     def show_title_screen(self) -> None:
         self.cancel_pending()
@@ -470,27 +464,71 @@ class AliceMemoryGame:
         self.body_label.config(
             text=(
                 "수정하거나 시험할 에피소드를 바로 선택하세요.\n"
-                "선택한 에피소드부터 라이프 5개로 시작하며, "
-                "클리어하면 다음 에피소드로 계속 진행됩니다.\n\n"
+                "제목 옆의 대괄호에는 작업기억 훈련 종류가 표시됩니다.\n"
                 f"현재 난이도: {self.difficulty}"
             ),
-            font=("Malgun Gothic", 14),
+            font=("Malgun Gothic", 13),
         )
         self.footer.config(
             text=(
-                "테스트용 바로가기입니다. "
-                "진행 기록이나 잠금 조건은 없습니다."
+                "목록이 화면보다 길면 마우스 휠 또는 "
+                "오른쪽 스크롤바로 이동할 수 있습니다."
             )
         )
 
-        episode_grid = tk.Frame(
+        # ----------------------------------------------------
+        # 스크롤 가능한 에피소드 목록
+        # ----------------------------------------------------
+        scroll_container = tk.Frame(
             self.button_frame,
             bg=PANEL,
         )
-        episode_grid.pack(
+        scroll_container.pack(
             fill="both",
             expand=True,
             pady=(0, 8),
+        )
+
+        scroll_container.grid_rowconfigure(
+            0,
+            weight=1,
+        )
+        scroll_container.grid_columnconfigure(
+            0,
+            weight=1,
+        )
+
+        episode_canvas = tk.Canvas(
+            scroll_container,
+            bg=PANEL,
+            highlightthickness=0,
+            bd=0,
+        )
+        episode_canvas.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+
+        scrollbar = tk.Scrollbar(
+            scroll_container,
+            orient="vertical",
+            command=episode_canvas.yview,
+        )
+        scrollbar.grid(
+            row=0,
+            column=1,
+            sticky="ns",
+            padx=(8, 0),
+        )
+
+        episode_canvas.configure(
+            yscrollcommand=scrollbar.set
+        )
+
+        episode_grid = tk.Frame(
+            episode_canvas,
+            bg=PANEL,
         )
         episode_grid.grid_columnconfigure(
             0,
@@ -501,17 +539,90 @@ class AliceMemoryGame:
             weight=1,
         )
 
+        canvas_window = episode_canvas.create_window(
+            (0, 0),
+            window=episode_grid,
+            anchor="nw",
+        )
+
+        def update_scroll_region(_event=None) -> None:
+            episode_canvas.configure(
+                scrollregion=episode_canvas.bbox("all")
+            )
+
+        def fit_inner_width(event) -> None:
+            # 내부 프레임이 캔버스 가로폭을 꽉 채우게 한다.
+            episode_canvas.itemconfigure(
+                canvas_window,
+                width=event.width,
+            )
+
+        episode_grid.bind(
+            "<Configure>",
+            update_scroll_region,
+        )
+        episode_canvas.bind(
+            "<Configure>",
+            fit_inner_width,
+        )
+
+        def on_mousewheel(event) -> None:
+            # Windows / macOS
+            if getattr(event, "delta", 0):
+                if abs(event.delta) >= 120:
+                    step = -int(event.delta / 120)
+                else:
+                    step = -1 if event.delta > 0 else 1
+
+                episode_canvas.yview_scroll(
+                    step,
+                    "units",
+                )
+                return
+
+            # Linux
+            if getattr(event, "num", None) == 4:
+                episode_canvas.yview_scroll(
+                    -1,
+                    "units",
+                )
+            elif getattr(event, "num", None) == 5:
+                episode_canvas.yview_scroll(
+                    1,
+                    "units",
+                )
+
+        # 버튼 위에 마우스가 있어도 휠이 작동하도록 이 화면에서만 bind_all.
+        # clear_buttons()가 다른 화면으로 넘어갈 때 해제한다.
+        self.root.bind_all(
+            "<MouseWheel>",
+            on_mousewheel,
+        )
+        self.root.bind_all(
+            "<Button-4>",
+            on_mousewheel,
+        )
+        self.root.bind_all(
+            "<Button-5>",
+            on_mousewheel,
+        )
+
         for index, stage in enumerate(
             self.stages
         ):
             row = index // 2
             column = index % 2
 
+            training_type = get_training_type(
+                stage.generator
+            )
+
             button = tk.Button(
                 episode_grid,
                 text=(
                     f"{index + 1:02d}. "
-                    f"{stage.title}"
+                    f"{stage.title}  "
+                    f"[{training_type}]"
                 ),
                 command=(
                     lambda i=index:
@@ -525,23 +636,24 @@ class AliceMemoryGame:
                 bd=0,
                 font=(
                     "Malgun Gothic",
-                    11,
+                    10,
                     "bold",
                 ),
                 cursor="hand2",
-                padx=10,
-                pady=8,
-                wraplength=300,
+                padx=8,
+                pady=6,
+                wraplength=330,
                 justify="center",
             )
             button.grid(
                 row=row,
                 column=column,
                 sticky="ew",
-                padx=6,
-                pady=4,
+                padx=5,
+                pady=3,
             )
 
+        # 시작 화면 버튼은 스크롤 영역 바깥에 고정한다.
         back_button = tk.Button(
             self.button_frame,
             text="← 시작 화면으로",
@@ -584,10 +696,6 @@ class AliceMemoryGame:
         self.round_in_stage = 0
         self.current_task = None
         self.show_story()
-
-    # ========================================================
-    # 스토리 → 준비 → 기억정보 → 문제
-    # ========================================================
 
     def show_story(self) -> None:
         self.cancel_pending()
@@ -754,10 +862,6 @@ class AliceMemoryGame:
                 self.answer(i),
             )
 
-    # ========================================================
-    # 정답/오답
-    # ========================================================
-
     def answer(
         self,
         index: int,
@@ -862,10 +966,6 @@ class AliceMemoryGame:
                 self.current_task,
                 retry=True,
             )
-
-    # ========================================================
-    # 스테이지 진행 / 게임오버 / 엔딩
-    # ========================================================
 
     def complete_stage(self) -> None:
         self.round_in_stage = 0
