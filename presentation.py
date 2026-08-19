@@ -119,6 +119,18 @@ class TaskPresenter:
             tick,
         )
 
+    def _sequence_font(self, text: str):
+        """순차 표시 텍스트 길이에 따라 폰트 크기를 조절한다."""
+        stripped = text.strip()
+
+        if "\n" in stripped:
+            return ("Malgun Gothic", 24, "bold")
+        if len(stripped) >= 14:
+            return ("Malgun Gothic", 24, "bold")
+        if len(stripped) >= 8:
+            return ("Malgun Gothic", 30, "bold")
+        return ("Malgun Gothic", 42, "bold")
+
     def _present_sequence(
         self,
         task: Task,
@@ -136,9 +148,12 @@ class TaskPresenter:
                 on_done()
                 return
 
+            current_text = str(sequence[index])
+
             self.body_label.config(
-                text=str(sequence[index]),
-                font=("Malgun Gothic", 42, "bold"),
+                text=current_text,
+                font=self._sequence_font(current_text),
+                justify="center",
             )
             self.footer_label.config(
                 text=f"{index + 1} / {len(sequence)}"
