@@ -8,11 +8,11 @@ from models import Stage, Task
 from problems import (
     make_association_task,
     make_composite_task,
-    make_delta_task,
     make_grid_task,
     make_nback_task,
     make_order_task,
     make_route_task,
+    make_rule_memory_task,
     make_sequence_task,
     make_story_detail_task,
     make_swap_task,
@@ -98,20 +98,22 @@ def rabbit_house_problem(difficulty: str):
 
 
 def caterpillar_problem(difficulty: str):
-    return make_delta_task(
+    """애벌레 에피소드: 누적 계산이 아니라 규칙 기억 훈련."""
+    return make_rule_memory_task(
         difficulty,
-        positive_label="오른쪽",
-        negative_label="왼쪽",
-        positive_result="커졌다",
-        negative_result="작아졌다",
-        zero_result="같다",
+        rule_keys=[
+            "버섯의 왼쪽 조각",
+            "버섯의 오른쪽 조각",
+        ],
+        rule_values=[
+            "몸이 커진다",
+            "몸이 작아진다",
+        ],
         intro=(
-            "애벌레가 말합니다.\n"
-            "왼쪽 버섯 = 한 단계 작아짐\n"
-            "오른쪽 버섯 = 한 단계 커짐\n\n"
-            "먹은 순서를 기억하며 크기 변화를 추적하세요."
+            "애벌레는 버섯의 두 조각이 서로 다른 효과를 가진다고 알려 줍니다.\n"
+            "어느 쪽이 몸을 키우고 어느 쪽이 몸을 줄이는지는 "
+            "이번 문제의 규칙을 보고 기억해야 합니다."
         ),
-        base_memory_ms=5200,
     )
 
 
@@ -222,19 +224,16 @@ def trial_problem(difficulty: str):
     )
 
 
-# ============================================================
-# 에피소드 선택 화면용 훈련 종류 메타데이터
-# ============================================================
 TRAINING_TYPE_LABELS: Dict[Callable[[str], Task], str] = {
     tutorial_problem: "순서 기억",
     small_door_problem: "순서 기억",
     pool_problem: "대응 기억",
     caucus_problem: "순위 기억",
     rabbit_house_problem: "N-Back",
-    caterpillar_problem: "상태 추적",
+    caterpillar_problem: "규칙 기억",
     duchess_problem: "대응 기억",
     cheshire_problem: "공간 추적",
-    tea_party_problem: "상태 추적",
+    tea_party_problem: "교환 추적",
     queen_garden_problem: "순서 기억",
     croquet_problem: "공간 추적",
     turtle_problem: "이야기 기억",
@@ -243,7 +242,6 @@ TRAINING_TYPE_LABELS: Dict[Callable[[str], Task], str] = {
 
 
 def get_training_type(generator: Callable[[str], Task]) -> str:
-    """에피소드 선택 화면에 표시할 훈련 종류를 반환한다."""
     return TRAINING_TYPE_LABELS.get(generator, "기타")
 
 
