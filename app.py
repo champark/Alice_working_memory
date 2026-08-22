@@ -52,6 +52,11 @@ class AliceMemoryGame:
         self.round_in_stage = 0
         self.current_task: Optional[Task] = None
 
+        # True이면 "에피소드 선택 / 테스트"에서 진입한 상태.
+        # 선택한 에피소드를 끝내면 다음 장으로 이어가지 않고
+        # 시작 화면으로 돌아간다.
+        self.episode_test_mode = False
+
         self.enter_action: Optional[
             Callable[[], None]
         ] = None
@@ -367,6 +372,7 @@ class AliceMemoryGame:
         self.round_in_stage = 0
         self.lives = START_LIVES
         self.current_task = None
+        self.episode_test_mode = False
 
         self.stage_label.config(text="")
         self.life_label.config(text="")
@@ -471,6 +477,7 @@ class AliceMemoryGame:
         self.stage_index = 0
         self.round_in_stage = 0
         self.current_task = None
+        self.episode_test_mode = False
         self.show_story()
 
     def show_episode_select(self) -> None:
@@ -725,6 +732,7 @@ class AliceMemoryGame:
         self.stage_index = index
         self.round_in_stage = 0
         self.current_task = None
+        self.episode_test_mode = True
         self.show_story()
 
     def show_story(self) -> None:
@@ -1242,6 +1250,13 @@ class AliceMemoryGame:
 
     def complete_stage(self) -> None:
         self.round_in_stage = 0
+
+        # 에피소드 선택/테스트 모드에서는
+        # 선택한 에피소드 하나만 완료하고 시작 화면으로 복귀한다.
+        if self.episode_test_mode:
+            self.current_task = None
+            self.show_title_screen()
+            return
 
         if (
             self.stage_index
