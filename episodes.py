@@ -7,7 +7,8 @@ from config import PRESENT_SEQUENCE
 from distractors import make_simple_math_distractor
 from models import Stage, Task
 from problems import (
-    make_association_task,
+    make_pair_association_task,
+    make_spatial_association_task,
     make_composite_task,
     make_grid_task,
     make_nback_task,
@@ -75,21 +76,15 @@ def small_door_problem(difficulty: str):
 
 
 def pool_problem(difficulty: str):
-    return make_association_task(
+    return make_spatial_association_task(
         difficulty,
-        left_pool=["흰 토끼", "오리", "쥐", "도도새", "앵무새", "게"],
-        right_pool=[
-            "왼쪽 위",
-            "가운데 위",
-            "오른쪽 위",
-            "왼쪽 아래",
-            "가운데 아래",
-            "오른쪽 아래",
-        ],
-        sample_count=4,
-        intro="눈물의 웅덩이에서 모두의 위치를 기억하세요.",
-        question_template="{target}는 어디에 있었나요?",
-        base_memory_ms=5000,
+        subjects=["흰 토끼", "오리", "쥐", "도도새", "앵무새", "게"],
+        intro=(
+            "눈물의 웅덩이에서 동물들이 흩어져 있습니다.\n"
+            "각 동물이 실제 어느 칸에 있는지 기억하세요."
+        ),
+        question_template="{target}가 있던 칸을 선택하세요.",
+        base_memory_ms=5200,
     )
 
 
@@ -132,18 +127,15 @@ def caterpillar_problem(difficulty: str):
 
 
 def duchess_problem(difficulty: str):
-    return make_association_task(
+    return make_pair_association_task(
         difficulty,
-        left_pool=["공작부인", "요리사", "아기", "고양이"],
-        right_pool=["후추", "수프", "접시", "자장가"],
-        sample_count=4,
-        intro="부엌의 관계를 기억하세요.",
-        base_memory_ms=5200,
-        extra_lines=[
-            "추가 상황: 후추가 나오면 모두 재채기합니다.",
-            "추가 상황: 접시가 날아가면 아기가 웃습니다.",
-            "추가 상황: 자장가가 들리면 고양이가 미소 짓습니다.",
-        ],
+        subjects=["공작부인", "요리사", "아기", "고양이"],
+        objects=["후추", "수프", "접시", "자장가"],
+        intro=(
+            "공작부인의 부엌에서 인물과 물건의 관계를 기억하세요.\n"
+            "한 화면에는 한 쌍만 나타납니다."
+        ),
+        question_template="{target}와 연결되어 있던 것은 무엇인가요?",
     )
 
 
@@ -241,11 +233,11 @@ def trial_problem(difficulty: str):
 TRAINING_TYPE_LABELS: Dict[Callable[[str], Task], str] = {
     tutorial_problem: "순서 기억",
     small_door_problem: "순서 기억",
-    pool_problem: "대응 기억",
+    pool_problem: "공간 대응 기억",
     caucus_problem: "순위 기억",
     rabbit_house_problem: "N-Back",
     caterpillar_problem: "규칙 기억",
-    duchess_problem: "대응 기억",
+    duchess_problem: "대상 대응 기억",
     cheshire_problem: "공간 추적",
     tea_party_problem: "교환 추적",
     queen_garden_problem: "순서 기억",

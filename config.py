@@ -26,3 +26,8 @@ BUTTON_ACTIVE = "#dfd2f4"
 # 표시 방식
 PRESENT_STATIC = "static"
 PRESENT_SEQUENCE = "sequence"
+PRESENT_GRID = "grid"
+
+# 답변 배치 방식
+ANSWER_BUTTONS = "buttons"
+ANSWER_GRID_3X3 = "grid3x3"

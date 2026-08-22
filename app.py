@@ -22,6 +22,7 @@ from config import (
     WINDOW_MIN_HEIGHT,
     WINDOW_MIN_WIDTH,
     WINDOW_SIZE,
+    ANSWER_GRID_3X3,
 )
 from difficulty import DIFFICULTIES, question_time_limit
 from episodes import build_stages, get_training_type
@@ -71,6 +72,7 @@ class AliceMemoryGame:
             root=self.root,
             body_label=self.body_label,
             footer_label=self.footer,
+            display_frame=self.button_frame,
             progress_updater=self.update_progress,
             clear_buttons=self.clear_buttons,
         )
@@ -1011,18 +1013,72 @@ class AliceMemoryGame:
             )
         )
 
-        for index, option in enumerate(
-            task.options
-        ):
-            self.add_button(
-                option,
-                lambda i=index:
-                self.answer(i),
-            )
+        if task.answer_layout == ANSWER_GRID_3X3:
+            self.add_grid_answer_buttons(task)
+        else:
+            for index, option in enumerate(
+                task.options
+            ):
+                self.add_button(
+                    option,
+                    lambda i=index:
+                    self.answer(i),
+                )
 
         self.start_question_timer(
             duration_ms
         )
+
+    def add_grid_answer_buttons(
+        self,
+        task: Task,
+    ) -> None:
+        """3×3 공간문제는 위치 이름을 읽지 않고 칸 자체를 클릭한다."""
+        grid_frame = tk.Frame(
+            self.button_frame,
+            bg=PANEL,
+        )
+        grid_frame.pack(
+            expand=True,
+            pady=8,
+        )
+
+        for row in range(3):
+            grid_frame.grid_rowconfigure(
+                row,
+                weight=1,
+                uniform="answer_grid",
+            )
+            grid_frame.grid_columnconfigure(
+                row,
+                weight=1,
+                uniform="answer_grid",
+            )
+
+        for index in range(9):
+            row, col = divmod(index, 3)
+            button = tk.Button(
+                grid_frame,
+                text="●",
+                command=lambda i=index: self.answer(i),
+                bg=BUTTON_BG,
+                fg=ACCENT,
+                activebackground=BUTTON_ACTIVE,
+                activeforeground=ACCENT,
+                relief="flat",
+                bd=0,
+                font=("Malgun Gothic", 18, "bold"),
+                cursor="hand2",
+                width=8,
+                height=2,
+            )
+            button.grid(
+                row=row,
+                column=col,
+                sticky="nsew",
+                padx=4,
+                pady=4,
+            )
 
     def start_question_timer(
         self,

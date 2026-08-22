@@ -44,6 +44,13 @@ class Task:
     # 특정 문제만 더 길거나 짧게 만들고 싶을 때 개별 지정 가능.
     question_duration_ms: Optional[int] = None
 
+    # 3×3 공간 대응 기억처럼 실제 격자를 그려야 하는 문제에서 사용.
+    # 행 우선(row-major) 9칸이며 빈 칸은 None.
+    grid_cells: Optional[List[Optional[str]]] = None
+
+    # 일반 세로 버튼 또는 3×3 위치 선택 버튼.
+    answer_layout: str = "buttons"
+
 
 @dataclass
 class Stage:
