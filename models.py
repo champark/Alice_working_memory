@@ -39,6 +39,11 @@ class Task:
     # 기억정보 제시가 끝난 뒤 본 질문 전에 수행할 방해 과제.
     distractor: Optional[Distractor] = None
 
+    # 본 기억 질문의 답변 제한시간(ms).
+    # None이면 difficulty.py의 공통 제한시간을 사용한다.
+    # 특정 문제만 더 길거나 짧게 만들고 싶을 때 개별 지정 가능.
+    question_duration_ms: Optional[int] = None
+
 
 @dataclass
 class Stage:

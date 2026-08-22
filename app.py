@@ -23,7 +23,7 @@ from config import (
     WINDOW_MIN_WIDTH,
     WINDOW_SIZE,
 )
-from difficulty import DIFFICULTIES
+from difficulty import DIFFICULTIES, question_time_limit
 from episodes import build_stages, get_training_type
 from models import Task
 from presentation import TaskPresenter
@@ -56,9 +56,12 @@ class AliceMemoryGame:
         ] = None
 
         # 산수 같은 방해 과제용 카운트다운 타이머.
-        # 화면 전환 시 반드시 취소해서 이전 타이머가
-        # 다음 화면을 강제로 넘기지 않도록 한다.
         self.distractor_timer_after_id: Optional[str] = None
+
+        # 모든 일반 기억 문제의 답변 제한시간 타이머.
+        # 순서 기억, N-Back, 규칙 기억, 교환 추적, 공간 추적 등
+        # show_question()을 사용하는 모든 문제에 공통 적용된다.
+        self.question_timer_after_id: Optional[str] = None
 
         self.stages = build_stages()
 
@@ -215,6 +218,16 @@ class AliceMemoryGame:
                 pass
 
             self.distractor_timer_after_id = None
+
+        if self.question_timer_after_id is not None:
+            try:
+                self.root.after_cancel(
+                    self.question_timer_after_id
+                )
+            except tk.TclError:
+                pass
+
+            self.question_timer_after_id = None
 
     def set_topbar(self) -> None:
         if 0 <= self.stage_index < len(self.stages):
@@ -985,8 +998,17 @@ class AliceMemoryGame:
             text=task.question_text,
             font=("Malgun Gothic", 14),
         )
+        duration_ms = (
+            task.question_duration_ms
+            if task.question_duration_ms is not None
+            else question_time_limit(self.difficulty)
+        )
+
         self.footer.config(
-            text="기억을 떠올려 정답을 선택하세요."
+            text=(
+                "기억을 떠올려 제한시간 안에 정답을 선택하세요. "
+                f"({duration_ms / 1000:g}초)"
+            )
         )
 
         for index, option in enumerate(
@@ -997,6 +1019,48 @@ class AliceMemoryGame:
                 lambda i=index:
                 self.answer(i),
             )
+
+        self.start_question_timer(
+            duration_ms
+        )
+
+    def start_question_timer(
+        self,
+        duration_ms: int,
+    ) -> None:
+        """모든 일반 기억 문제에 공통으로 적용되는 답변 제한시간."""
+        duration_ms = max(1, duration_ms)
+        step_ms = 50
+        elapsed = 0
+
+        self.update_progress(1.0)
+
+        def tick() -> None:
+            nonlocal elapsed
+
+            elapsed += step_ms
+            remain = max(
+                0.0,
+                1.0 - elapsed / duration_ms,
+            )
+            self.update_progress(remain)
+
+            if elapsed >= duration_ms:
+                self.question_timer_after_id = None
+                self.handle_wrong(
+                    timed_out=True
+                )
+                return
+
+            self.question_timer_after_id = self.root.after(
+                step_ms,
+                tick,
+            )
+
+        self.question_timer_after_id = self.root.after(
+            step_ms,
+            tick,
+        )
 
     def answer(
         self,
@@ -1017,6 +1081,7 @@ class AliceMemoryGame:
         self.cancel_pending()
         self.set_enter_action(None)
         self.clear_buttons()
+        self.hide_progress()
 
         self.round_in_stage += 1
         self.set_topbar()
@@ -1056,10 +1121,14 @@ class AliceMemoryGame:
                 self.begin_round
             )
 
-    def handle_wrong(self) -> None:
+    def handle_wrong(
+        self,
+        timed_out: bool = False,
+    ) -> None:
         self.cancel_pending()
         self.set_enter_action(None)
         self.clear_buttons()
+        self.hide_progress()
 
         self.lives -= 1
         self.set_topbar()
@@ -1069,10 +1138,22 @@ class AliceMemoryGame:
             return
 
         self.title_label.config(
-            text="기억이 흔들렸습니다"
+            text=(
+                "시간 초과"
+                if timed_out
+                else "기억이 흔들렸습니다"
+            )
         )
+
+        reason = (
+            "제한시간 안에 답을 선택하지 못했습니다."
+            if timed_out
+            else "선택한 답이 정답이 아니었습니다."
+        )
+
         self.body_label.config(
             text=(
+                f"{reason}\n"
                 "라이프가 1 감소했습니다.\n\n"
                 "정답을 바로 공개하지 않습니다.\n"
                 "대신 방금 기억해야 했던 정보를 "

@@ -13,6 +13,7 @@ DIFFICULTIES: Dict[str, dict] = {
         "nback_gap_ms": 320,
         "swap_count": 1,
         "grid_moves": 3,
+        "question_time_ms": 12000,
     },
     "보통": {
         "memory_ms_mul": 1.00,
@@ -22,6 +23,7 @@ DIFFICULTIES: Dict[str, dict] = {
         "nback_gap_ms": 250,
         "swap_count": 2,
         "grid_moves": 4,
+        "question_time_ms": 9000,
     },
     "도전": {
         "memory_ms_mul": 0.78,
@@ -31,6 +33,7 @@ DIFFICULTIES: Dict[str, dict] = {
         "nback_gap_ms": 200,
         "swap_count": 3,
         "grid_moves": 5,
+        "question_time_ms": 7000,
     },
 }
 
@@ -69,3 +72,12 @@ def swap_count(difficulty: str) -> int:
 
 def grid_move_count(difficulty: str) -> int:
     return DIFFICULTIES[difficulty]["grid_moves"]
+
+
+
+def question_time_limit(difficulty: str) -> int:
+    """모든 일반 기억 문제의 기본 답변 제한시간(ms).
+
+    개별 Task가 별도 제한시간을 지정하지 않은 경우 이 값을 사용한다.
+    """
+    return DIFFICULTIES[difficulty]["question_time_ms"]
