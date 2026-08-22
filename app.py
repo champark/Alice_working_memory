@@ -55,6 +55,11 @@ class AliceMemoryGame:
             Callable[[], None]
         ] = None
 
+        # 산수 같은 방해 과제용 카운트다운 타이머.
+        # 화면 전환 시 반드시 취소해서 이전 타이머가
+        # 다음 화면을 강제로 넘기지 않도록 한다.
+        self.distractor_timer_after_id: Optional[str] = None
+
         self.stages = build_stages()
 
         self.build_shell()
@@ -200,6 +205,16 @@ class AliceMemoryGame:
 
     def cancel_pending(self) -> None:
         self.presenter.cancel()
+
+        if self.distractor_timer_after_id is not None:
+            try:
+                self.root.after_cancel(
+                    self.distractor_timer_after_id
+                )
+            except tk.TclError:
+                pass
+
+            self.distractor_timer_after_id = None
 
     def set_topbar(self) -> None:
         if 0 <= self.stage_index < len(self.stages):
@@ -828,8 +843,129 @@ class AliceMemoryGame:
             task,
             on_done=(
                 lambda:
-                self.show_question(task)
+                self.show_distractor_or_question(task)
             ),
+        )
+
+    def show_distractor_or_question(
+        self,
+        task: Task,
+    ) -> None:
+        """방해 과제가 있으면 먼저 수행하고, 없으면 바로 본 질문으로 간다."""
+        if task.distractor is None:
+            self.show_question(task)
+            return
+
+        self.show_distractor(task)
+
+    def show_distractor(
+        self,
+        task: Task,
+    ) -> None:
+        """기억정보와 본 질문 사이의 짧은 방해 과제를 표시한다.
+
+        방해 과제는 라이프와 별개다.
+        정답을 맞히면 즉시 본 기억 질문으로 넘어가며,
+        제한시간이 끝나도 라이프 차감 없이 본 질문으로 넘어간다.
+        """
+        distractor = task.distractor
+        if distractor is None:
+            self.show_question(task)
+            return
+
+        self.cancel_pending()
+        self.set_enter_action(None)
+        self.clear_buttons()
+        self.set_topbar()
+
+        self.title_label.config(
+            text="잠깐, 다른 문제"
+        )
+        self.body_label.config(
+            text=distractor.question_text,
+            font=("Malgun Gothic", 20, "bold"),
+        )
+        self.footer.config(
+            text=(
+                "제한시간 안에 계산하세요. "
+                "틀려도 라이프는 줄지 않습니다."
+            )
+        )
+
+        for index, option in enumerate(
+            distractor.options
+        ):
+            self.add_button(
+                option,
+                lambda i=index:
+                self.answer_distractor(task, i),
+            )
+
+        self.start_distractor_timer(
+            task,
+            distractor.duration_ms,
+        )
+
+    def start_distractor_timer(
+        self,
+        task: Task,
+        duration_ms: int,
+    ) -> None:
+        """방해 과제의 제한시간과 progress bar를 함께 진행한다."""
+        duration_ms = max(1, duration_ms)
+        step_ms = 50
+        elapsed = 0
+
+        self.update_progress(1.0)
+
+        def tick() -> None:
+            nonlocal elapsed
+
+            elapsed += step_ms
+            remain = max(
+                0.0,
+                1.0 - elapsed / duration_ms,
+            )
+            self.update_progress(remain)
+
+            if elapsed >= duration_ms:
+                self.distractor_timer_after_id = None
+                self.show_question(task)
+                return
+
+            self.distractor_timer_after_id = self.root.after(
+                step_ms,
+                tick,
+            )
+
+        self.distractor_timer_after_id = self.root.after(
+            step_ms,
+            tick,
+        )
+
+    def answer_distractor(
+        self,
+        task: Task,
+        index: int,
+    ) -> None:
+        """정답이면 즉시 진행, 오답이면 남은 시간 동안 재도전한다."""
+        distractor = task.distractor
+
+        if distractor is None:
+            self.show_question(task)
+            return
+
+        if index == distractor.correct_index:
+            # show_question() 내부의 cancel_pending()이
+            # 진행 중인 방해 과제 타이머도 함께 정리한다.
+            self.show_question(task)
+            return
+
+        self.footer.config(
+            text=(
+                "계산이 틀렸습니다. 라이프는 줄지 않습니다. "
+                "남은 시간 안에 다시 계산해 보세요."
+            )
         )
 
     def show_question(

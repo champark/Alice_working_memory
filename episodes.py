@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Callable, Dict, List
 
 from config import PRESENT_SEQUENCE
+from distractors import make_simple_math_distractor
 from models import Stage, Task
 from problems import (
     make_association_task,
@@ -20,20 +21,33 @@ from problems import (
 
 
 def tutorial_problem(difficulty: str):
-    return make_sequence_task(
+    """프롤로그: 짧은 순서 기억 + 간단한 산수 방해 과제."""
+    task = make_sequence_task(
         difficulty,
         items=["회중시계", "책", "찻잔", "열쇠", "촛대", "지도"],
         base_count=3,
         low_count=3,
         high_count=3,
-        intro="토끼굴을 떨어지는 동안 물건들이 하나씩 보입니다. 순서를 기억하세요.",
+        intro=(
+            "토끼굴을 떨어지는 동안 물건들이 하나씩 보입니다.\n"
+            "순서를 기억하세요. 물건이 모두 지나간 뒤에는 "
+            "아주 간단한 계산 문제가 하나 나옵니다."
+        ),
         question_template="{position}번째로 본 물건은 무엇이었나요?",
         base_memory_ms=4500,
-        tip="나타난 순서를 머릿속으로 이어 붙여 기억해 보세요.",
+        tip=(
+            "물건을 본 뒤 바로 질문하지 않습니다. "
+            "중간 과제를 푼 뒤에도 순서를 기억해 보세요."
+        ),
         presentation=PRESENT_SEQUENCE,
-        item_ms=1000,
-        gap_ms=250,
+        item_ms=1100,
+        gap_ms=280,
     )
+
+    task.distractor = make_simple_math_distractor(
+        difficulty
+    )
+    return task
 
 
 def small_door_problem(difficulty: str):
